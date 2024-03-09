@@ -8,8 +8,8 @@ Parameters:
     Default: us-east-1
   GitHubToken:
     Type: String
-    NoEcho: true
     Description: GitHub Token
+    Default: ""
   RepositoryECR:
     Type: String
     Description: Repositório imagem ECR
@@ -26,19 +26,7 @@ Resources:
       Name: GitHubBuildImageAPI
       Description: Build da imagem API
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      Artifacts:
-        Type: NO_ARTIFACTS
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:4.0
-        EnvironmentVariables:
-          - Name: AWS_DEFAULT_REGION
-            Value: !Ref AwsRegion
-          - Name: REPOSITORY_URI_ECR
-            Value: !Ref RepositoryECR
-          - Name: DOCKER_FILE_PATH
-            Value: !Ref DockerFilePath
+
       Source:
         Type: GITHUB
         Location: !Sub https://github.com/Brian-Schneider/provisionamento-aws.git
@@ -55,24 +43,38 @@ Resources:
                 docker: 18
             pre_build:
               commands:
+                - set -e
+                - set -x
                 - echo Logando no Amazon ECR...
-                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | \
-                  docker login --password-stdin \
-                  --username AWS "$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --password-stdin --username AWS "$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
             build:         
               commands:
                 - echo Build iniciou em `date`
                 - echo Buildando a imagem Docker...
-                - docker build -t $REPOSITORY_URI_ECR:latest -f $DOCKER_FILE_PATH .
+                - docker build -t $REPOSITORY_URL_ECR -f $DOCKER_FILE_PATH .
                 - echo Build finalizou em `date`
                 - echo Enviando a imagem Docker para o Amazon ECR...
-                - docker push $REPOSITORY_URI_ECR:latest
+                - docker push $REPOSITORY_URL_ECR
             post_build:
               commands:
                 - echo Build finalizou em `date`
                 - echo Enviando a imagem Docker para o Amazon ECR...
-                - docker push $REPOSITORY_URI_ECR:latest
+                - docker push $REPOSITORY_URL_ECR
                 - echo Writing image definitions file...
+
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AwsRegion
+          - Name: REPOSITORY_URL_ECR
+            Value: !Ref RepositoryECR
+          - Name: DOCKER_FILE_PATH
+            Value: !Ref DockerFilePath
   
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
