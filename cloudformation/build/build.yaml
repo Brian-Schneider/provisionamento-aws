@@ -10,14 +10,30 @@ Parameters:
     Type: String
     Description: GitHub Token
     Default: ""
-  RepositoryECR:
+  RepositoryAPI:
     Type: String
-    Description: Repositório imagem ECR
-    Default: ""
-  DockerFilePath:
+    Description: Repositório imagem API
+    Default: "656962923050.dkr.ecr.us-east-1.amazonaws.com/api"
+  RepositoryFrontend:
     Type: String
-    Description: Caminho Dockerfile
+    Description: Repositório imagem Frontend
+    Default: "656962923050.dkr.ecr.us-east-1.amazonaws.com/frontend"
+  RepositoryWorker:
+    Type: String
+    Description: Repositório imagem Worker
+    Default: "656962923050.dkr.ecr.us-east-1.amazonaws.com/worker"
+  DockerFilePathApi:
+    Type: String
+    Description: Caminho Dockerfile API
     Default: "application/api/Dockerfile"
+  DockerFilePathFrontend:
+    Type: String
+    Description: Caminho Dockerfile Frontend
+    Default: "application/frontend/Dockerfile"
+  DockerFilePathWorker:
+    Type: String
+    Description: Caminho Dockerfile Worker
+    Default: "application/worker/Dockerfile"
 
 Resources:
   CodeBuildProject:
@@ -36,10 +52,18 @@ Resources:
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AwsRegion
-          - Name: REPOSITORY_URI_ECR
-            Value: !Ref RepositoryECR
-          - Name: DOCKER_FILE_PATH
-            Value: !Ref DockerFilePath
+          - Name: REPOSITORY_URI_API
+            Value: !Ref RepositoryAPI
+          - Name: REPOSITORY_URI_FRONTEND
+            Value: !Ref RepositoryFrontend
+          - Name: REPOSITORY_URI_WORKER
+            Value: !Ref RepositoryWorker
+          - Name: DOCKER_FILE_API
+            Value: !Ref DockerFilePathApi
+          - Name: DOCKER_FILE_FRONTEND
+            Value: !Ref DockerFilePathFrontend
+          - Name: DOCKER_FILE_WORKER
+            Value: !Ref DockerFilePathWorker
 
       Source:
         Type: GITHUB
@@ -62,13 +86,17 @@ Resources:
             build:         
               commands:
                 - echo Build iniciou em `date`
-                - echo Buildando a imagem Docker...
-                - docker build -t $REPOSITORY_URI_ECR:latest -f $DOCKER_FILE_PATH .
+                - echo Buildando as imagens Docker...
+                - docker build -t $REPOSITORY_URI_API:latest -f $DOCKER_FILE_API .
+                - docker build -t $REPOSITORY_URI_FRONTEND:latest -f $DOCKER_FILE_FRONTEND .
+                - docker build -t $REPOSITORY_URI_WORKER:latest -f $DOCKER_FILE_WORKER .
             post_build:
               commands:
                 - echo Build finalizou em `date`
-                - echo Enviando a imagem Docker para o Amazon ECR...
-                - docker push $REPOSITORY_URI_ECR:latest
+                - echo Enviando as imagens Docker para o Amazon ECR...
+                - docker push $REPOSITORY_URI_API:latest
+                - docker push $REPOSITORY_URI_FRONTEND:latest
+                - docker push $REPOSITORY_URI_WORKER:latest
 
      
   
